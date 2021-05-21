@@ -79,12 +79,16 @@ int FindPath(const int nStartX, const int nStartY,
 		if (current == nodeEnd) {
 			vector<int> path;
 			sNode* p = current;
-			while (p->previous != nullptr) { //Retrace path.
+
+			//Retrace path.
+			while (p->previous != nullptr) {
 				int index = p->y * nMapWidth + p->x;
 				path.push_back(index);
 				p = p->previous;
 			}
-			if (path.size() <= nOutBufferSize) { // Output path to pOutBuffer if possible
+
+			// Output path to pOutBuffer if possible
+			if (path.size() <= nOutBufferSize) {
 				reverse(path.begin(), path.end());
 				copy(path.begin(), path.end(), pOutBuffer);
 			}
@@ -126,6 +130,11 @@ int main() {
 	unsigned char pMap3[] = { 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 	int pOutBuffer3[8];
 	cout << FindPath(4, 3, 1, 0, pMap3, 6, 4, pOutBuffer3, 8) << endl;
+
+	// Example 4: 8 {23, 17, 11, 5, 4, 3, 2, 1}
+	unsigned char pMap4[] = { 0 };
+	int pOutBuffer4[1];
+	cout << FindPath(0, 0, 0, 0, pMap4, 1, 1, pOutBuffer4, 1) << endl;
 
 	return 0;
 }
