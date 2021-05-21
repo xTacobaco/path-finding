@@ -2,6 +2,7 @@
 #include <queue>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 using namespace std;
 
 struct sNode {
@@ -40,7 +41,7 @@ int FindPath(const int nStartX, const int nStartY,
 
 		// Calculate positions
 		int x = i % nMapWidth;
-		int y = i / (nMapHeight + 1);
+		int y = (i - x) / (nMapHeight + 1);
 
 		node->x = x;
 		node->y = y;
@@ -73,7 +74,7 @@ int FindPath(const int nStartX, const int nStartY,
 	while (! pqOpenSet.empty()) {
 		current = pqOpenSet.top(); pqOpenSet.pop();
 		current->bVisited = true;
-
+		
 		// Found path
 		if (current == nodeEnd) {
 			vector<int> path;
@@ -83,7 +84,7 @@ int FindPath(const int nStartX, const int nStartY,
 				path.push_back(index);
 				p = p->previous;
 			}
-			if (path.size() < nOutBufferSize) { // Output path to pOutBuffer if possible
+			if (path.size() <= nOutBufferSize) { // Output path to pOutBuffer if possible
 				reverse(path.begin(), path.end());
 				copy(path.begin(), path.end(), pOutBuffer);
 			}
@@ -105,7 +106,7 @@ int FindPath(const int nStartX, const int nStartY,
 				}
 			}
 		}
-	}
+	} 
 	// Couldn't find a path.
 	return -1;
 }
@@ -120,5 +121,11 @@ int main() {
 	unsigned char pMap2[] = { 0, 0, 1, 0, 1, 1, 1, 0, 1 };
 	int pOutBuffer2[7];
 	cout << FindPath(2, 0, 0, 2, pMap2, 3, 3, pOutBuffer2, 7) << endl;
+	
+	// Example 3: 8 {23, 17, 11, 5, 4, 3, 2, 1}
+	unsigned char pMap3[] = { 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+	int pOutBuffer3[8];
+	cout << FindPath(4, 3, 1, 0, pMap3, 6, 4, pOutBuffer3, 8) << endl;
+
 	return 0;
 }
