@@ -15,12 +15,17 @@ struct sNode {
 	float fCost = INFINITY;		// Cost to walk to node, from start
 	float fDistance = INFINITY; // Distance to end
 
-	bool operator<(const sNode& n) const {
-		return fCost + fDistance < n.fCost + n.fDistance;
-	}
-
 	vector<sNode*> vNeighbors;
 	sNode* previous = nullptr;
+};
+
+struct compare_node_ptrs {
+	bool operator()(sNode* n1, sNode* n2) const {
+		if (n1->fCost + n1->fDistance == n2->fCost + n2->fDistance) { // Prioritize nodes closer to the end
+			return n1->fDistance > n2->fDistance;
+		}
+		return n1->fCost + n1->fDistance > n2->fCost + n2->fDistance;
+	}
 };
 
 // Implementation of A* path finding
@@ -67,7 +72,7 @@ int FindPath(const int nStartX, const int nStartY,
 	current->fCost = 0.0f;
 	current->fDistance = heuristic(nodeStart, nodeEnd);
 
-	priority_queue<sNode*> pqOpenSet;
+	priority_queue<sNode*, vector<sNode*>, compare_node_ptrs> pqOpenSet;
 	pqOpenSet.push(current);
 
 	// Open set loop
@@ -104,7 +109,9 @@ int FindPath(const int nStartX, const int nStartY,
 			float tentativeCost = current->fCost + heuristic(current, neighbor);
 			if (tentativeCost < neighbor->fCost || ! neighbor->bVisited) {
 				neighbor->fCost = tentativeCost;
+				neighbor->fDistance = heuristic(neighbor, nodeEnd);
 				neighbor->previous = current;
+
 				if (! neighbor->bVisited) {
 					pqOpenSet.push(neighbor);
 				}
@@ -131,10 +138,15 @@ int main() {
 	int pOutBuffer3[8];
 	cout << FindPath(4, 3, 1, 0, pMap3, 6, 4, pOutBuffer3, 8) << endl;
 
-	// Example 4: 8 {23, 17, 11, 5, 4, 3, 2, 1}
+	// Example 4: 0 { 0 }
 	unsigned char pMap4[] = { 0 };
 	int pOutBuffer4[1];
 	cout << FindPath(0, 0, 0, 0, pMap4, 1, 1, pOutBuffer4, 1) << endl;
+
+	// Example 5: 7 {19, 20, 21, 22, 23, 17, 11}
+	unsigned char pMap5[] = { 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1 };
+	int pOutBuffer5[10];
+	cout << FindPath(0, 3, 5, 1, pMap5, 6, 4, pOutBuffer5, 10) << endl;
 
 	return 0;
 }
