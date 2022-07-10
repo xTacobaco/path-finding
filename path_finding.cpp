@@ -2,20 +2,30 @@
 #include <queue>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 using namespace std;
 
 struct sNode {
-	int x;
-	int y;
+	int x = 0;
+	int y = 0;
 
 	bool bVisited = false;
 	bool bTraversable = false;
 
-	float fCost = INFINITY;
-	float fDistance = INFINITY;
+	float fCost = INFINITY;		// Cost to walk to node, from start
+	float fDistance = INFINITY; // Distance to end
 
-	sNode* previous = nullptr;
 	vector<sNode*> vNeighbors;
+	sNode* previous = nullptr;
+};
+
+struct compare_node_ptrs {
+	bool operator()(sNode* n1, sNode* n2) const {
+		if (n1->fCost + n1->fDistance == n2->fCost + n2->fDistance) { // Prioritize nodes closer to the end
+			return n1->fDistance > n2->fDistance;
+		}
+		return n1->fCost + n1->fDistance > n2->fCost + n2->fDistance;
+	}
 };
 
 // Implementation of A* path finding
@@ -29,19 +39,19 @@ int FindPath(const int nStartX, const int nStartY,
 	sNode* nodeStart = &nodes[nStartY * nMapWidth + nStartX];
 	sNode* nodeEnd = &nodes[nTargetY * nMapWidth + nTargetX];
 
-	//Initialize nodes
-	for (int i = 0; i < nMapSize; i++) {
-		nodes[i].bTraversable = pMap[i] == 1;
-		nodes[i].x = i % nMapWidth;
-		nodes[i].y = i / (nMapHeight+1);
-	}
-
-	//Initialize nodes' neighbors
+	// Initialize nodes
 	for (int i = 0; i < nMapSize; i++) {
 		sNode* node = &nodes[i];
-		int x = node->x;
-		int y = node->y;
+		node->bTraversable = pMap[i] == 1;
 
+		// Calculate positions
+		int x = i % nMapWidth;
+		int y = (i - x) / (nMapHeight + 1);
+
+		node->x = x;
+		node->y = y;
+
+		// Add neighbors
 		if (y > 0)
 			node->vNeighbors.push_back(&nodes[(y - 1) * nMapWidth + x]);
 		if (y < nMapHeight - 1)
@@ -53,74 +63,90 @@ int FindPath(const int nStartX, const int nStartY,
 	}
 
 	// Using manhattan distance as the heuristic function
-	auto heuristic = [](sNode* a, sNode* b) {
+	auto heuristic = [=](sNode* a, sNode* b) -> int {
 		return (abs(a->x - b->x) + abs(a->y - b->y));
 	};
 
-	//Setup starting node and adding it to the open set.
+	// Setup starting node and adding it to the open set
 	sNode* current = nodeStart;
 	current->fCost = 0.0f;
 	current->fDistance = heuristic(nodeStart, nodeEnd);
-	priority_queue<sNode*> pqOpenSet;
+
+	priority_queue<sNode*, vector<sNode*>, compare_node_ptrs> pqOpenSet;
 	pqOpenSet.push(current);
 
-	//Open set loop
-	while (! pqOpenSet.empty() && current != nodeEnd) {
-
-		while (! pqOpenSet.empty() && pqOpenSet.top()->bVisited)
-			pqOpenSet.pop();
-
-		if (pqOpenSet.empty())
-			break;
-
-		current = pqOpenSet.top();
+	// Open set loop
+	while (! pqOpenSet.empty()) {
+		current = pqOpenSet.top(); pqOpenSet.pop();
 		current->bVisited = true;
+		
+		// Found path
+		if (current == nodeEnd) {
+			vector<int> path;
+			sNode* p = current;
 
+			//Retrace path.
+			while (p->previous != nullptr) {
+				int index = p->y * nMapWidth + p->x;
+				path.push_back(index);
+				p = p->previous;
+			}
+
+			// Output path to pOutBuffer if possible
+			if (path.size() <= nOutBufferSize) {
+				reverse(path.begin(), path.end());
+				copy(path.begin(), path.end(), pOutBuffer);
+			}
+			return path.size();
+		}
+
+		// Evaluate neighbors
 		for (auto neighbor : current->vNeighbors) {
-			if (!neighbor->bVisited && neighbor->bTraversable) {
-				pqOpenSet.push(neighbor);
+			if (! neighbor->bTraversable || neighbor->bVisited) {
+				continue;
 			}
-
+			
 			float tentativeCost = current->fCost + heuristic(current, neighbor);
-
-			if (tentativeCost < neighbor->fCost) {
-				neighbor->previous = current;
+			if (tentativeCost < neighbor->fCost || ! neighbor->bVisited) {
 				neighbor->fCost = tentativeCost;
-				neighbor->fDistance = neighbor->fCost + heuristic(neighbor, nodeEnd);
+				neighbor->fDistance = heuristic(neighbor, nodeEnd);
+				neighbor->previous = current;
+
+				if (! neighbor->bVisited) {
+					pqOpenSet.push(neighbor);
+				}
 			}
 		}
-	}
-
-	// Calculate and return distance from path
-	if (current == nodeEnd) {
-		sNode* p = nodeEnd;
-		vector<int> cords;
-
-		while (p->previous != nullptr) {
-			int index = p->y * nMapWidth + p->x;
-			cords.push_back(index);
-			p = p->previous;
-		}
-
-		if (cords.size() < nOutBufferSize) { //Output path to pOutBuffer if possible.
-			reverse(cords.begin(), cords.end());
-			copy(cords.begin(), cords.end(), pOutBuffer);
-		}
-		return cords.size();
-	}
+	} 
 	// Couldn't find a path.
 	return -1;
 }
 
 int main() {
-	//Example 1: 3 {1,5,9}
-    unsigned char pMap[] = { 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1 };
-    int pOutBuffer[12];
+	// Example 1: 3 {1,5,9}
+	unsigned char pMap[] = { 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1 };
+	int pOutBuffer[12];
 	cout << FindPath(0, 0, 1, 2, pMap, 4, 3, pOutBuffer, 12) << endl;
 
-	//Example 2: -1
+	// Example 2: -1
 	unsigned char pMap2[] = { 0, 0, 1, 0, 1, 1, 1, 0, 1 };
 	int pOutBuffer2[7];
 	cout << FindPath(2, 0, 0, 2, pMap2, 3, 3, pOutBuffer2, 7) << endl;
-    return 0;
+	
+	// Example 3: 8 {23, 17, 11, 5, 4, 3, 2, 1}
+	unsigned char pMap3[] = { 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+	int pOutBuffer3[8];
+	cout << FindPath(4, 3, 1, 0, pMap3, 6, 4, pOutBuffer3, 8) << endl;
+
+	// Example 4: 0 { 0 }
+	unsigned char pMap4[] = { 0 };
+	int pOutBuffer4[1];
+	cout << FindPath(0, 0, 0, 0, pMap4, 1, 1, pOutBuffer4, 1) << endl;
+
+	// Example 5: 7 {19, 20, 21, 22, 23, 17, 11}
+	unsigned char pMap5[] = { 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1 };
+	int pOutBuffer5[10];
+	cout << FindPath(0, 3, 5, 1, pMap5, 6, 4, pOutBuffer5, 10) << endl;
+
+	return 0;
 }
